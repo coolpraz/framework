@@ -7,14 +7,23 @@ class EncrypterTest extends PHPUnit_Framework_TestCase {
 	public function testEncryption()
 	{
 		$e = $this->getEncrypter();
-		$this->assertFalse('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' == $e->encrypt('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'));
+		$this->assertNotEquals('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', $e->encrypt('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'));
 		$encrypted = $e->encrypt('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
-		$this->assertTrue('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' == $e->decrypt($encrypted));
+		$this->assertEquals('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', $e->decrypt($encrypted));
 	}
 
 
+	public function testEncryptionWithCustomCipher()
+	{
+		$e = $this->getEncrypter();
+		$e->setCipher(MCRYPT_RIJNDAEL_256);
+		$this->assertNotEquals('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', $e->encrypt('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'));
+		$encrypted = $e->encrypt('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+		$this->assertEquals('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', $e->decrypt($encrypted));
+	}
+
 	/**
-	 * @expectedException Illuminate\Encryption\DecryptException
+	 * @expectedException Illuminate\Contracts\Encryption\DecryptException
 	 */
 	public function testExceptionThrownWhenPayloadIsInvalid()
 	{

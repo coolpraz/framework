@@ -2,11 +2,11 @@
 
 use Mockery as m;
 use Illuminate\View\View;
-use Illuminate\Support\Contracts\ArrayableInterface;
+use Illuminate\Contracts\Support\Arrayable;
 
 class ViewTest extends PHPUnit_Framework_TestCase {
 
-	public function __construct()
+	public function tearDown()
 	{
 		m::close();
 	}
@@ -54,11 +54,10 @@ class ViewTest extends PHPUnit_Framework_TestCase {
 			m::mock('Illuminate\View\Engines\EngineInterface'),
 			'view',
 			'path',
-			array()
+			array(),
 		));
 
 		$view->shouldReceive('render')->with(m::type('Closure'))->once()->andReturn($sections = array('foo' => 'bar'));
-		$view->getFactory()->shouldReceive('getSections')->once()->andReturn($sections);
 
 		$this->assertEquals($sections, $view->renderSections());
 	}
@@ -67,14 +66,15 @@ class ViewTest extends PHPUnit_Framework_TestCase {
 	public function testSectionsAreNotFlushedWhenNotDoneRendering()
 	{
 		$view = $this->getView();
-		$view->getFactory()->shouldReceive('incrementRender')->once();
-		$view->getFactory()->shouldReceive('callComposer')->once()->with($view);
-		$view->getFactory()->shouldReceive('getShared')->once()->andReturn(array('shared' => 'foo'));
-		$view->getEngine()->shouldReceive('get')->once()->with('path', array('foo' => 'bar', 'shared' => 'foo'))->andReturn('contents');
-		$view->getFactory()->shouldReceive('decrementRender')->once();
-		$view->getFactory()->shouldReceive('flushSectionsIfDoneRendering')->once();
+		$view->getFactory()->shouldReceive('incrementRender')->twice();
+		$view->getFactory()->shouldReceive('callComposer')->twice()->with($view);
+		$view->getFactory()->shouldReceive('getShared')->twice()->andReturn(array('shared' => 'foo'));
+		$view->getEngine()->shouldReceive('get')->twice()->with('path', array('foo' => 'bar', 'shared' => 'foo'))->andReturn('contents');
+		$view->getFactory()->shouldReceive('decrementRender')->twice();
+		$view->getFactory()->shouldReceive('flushSectionsIfDoneRendering')->twice();
 
 		$this->assertEquals('contents', $view->render());
+		$this->assertEquals('contents', (string) $view);
 	}
 
 
@@ -90,7 +90,7 @@ class ViewTest extends PHPUnit_Framework_TestCase {
 
 	public function testViewAcceptsArrayableImplementations()
 	{
-		$arrayable = m::mock('Illuminate\Support\Contracts\ArrayableInterface');
+		$arrayable = m::mock('Illuminate\Contracts\Support\Arrayable');
 		$arrayable->shouldReceive('toArray')->once()->andReturn(array('foo' => 'bar', 'baz' => array('qux', 'corge')));
 
 		$view = new View(
@@ -103,6 +103,103 @@ class ViewTest extends PHPUnit_Framework_TestCase {
 
 		$this->assertEquals('bar', $view->foo);
 		$this->assertEquals(array('qux', 'corge'), $view->baz);
+	}
+
+
+	public function testViewGettersSetters()
+	{
+		$view = $this->getView();
+		$this->assertEquals($view->getName(), 'view');
+		$this->assertEquals($view->getPath(), 'path');
+		$data = $view->getData();
+		$this->assertEquals($data['foo'], 'bar');
+		$view->setPath('newPath');
+		$this->assertEquals($view->getPath(), 'newPath');
+	}
+
+
+	public function testViewArrayAccess()
+	{
+		$view = $this->getView();
+		$this->assertInstanceOf('ArrayAccess', $view);
+		$this->assertTrue($view->offsetExists('foo'));
+		$this->assertEquals($view->offsetGet('foo'), 'bar');
+		$view->offsetSet('foo','baz');
+		$this->assertEquals($view->offsetGet('foo'), 'baz');
+		$view->offsetUnset('foo');
+		$this->assertFalse($view->offsetExists('foo'));
+	}
+
+
+	public function testViewMagicMethods()
+	{
+		$view = $this->getView();
+		$this->assertTrue(isset($view->foo));
+		$this->assertEquals($view->foo, 'bar');
+		$view->foo = 'baz';
+		$this->assertEquals($view->foo, 'baz');
+		$this->assertEquals($view['foo'], $view->foo);
+		unset($view->foo);
+		$this->assertFalse(isset($view->foo));
+		$this->assertFalse($view->offsetExists('foo'));
+	}
+
+
+	public function testViewBadMethod()
+	{
+		$this->setExpectedException('BadMethodCallException');
+		$view = $this->getView();
+		$view->badMethodCall();
+	}
+
+
+	public function testViewGatherDataWithRenderable()
+	{
+		$view = $this->getView();
+		$view->getFactory()->shouldReceive('incrementRender')->once()->ordered();
+		$view->getFactory()->shouldReceive('callComposer')->once()->ordered()->with($view);
+		$view->getFactory()->shouldReceive('getShared')->once()->andReturn(array('shared' => 'foo'));
+		$view->getEngine()->shouldReceive('get')->once()->andReturn('contents');
+		$view->getFactory()->shouldReceive('decrementRender')->once()->ordered();
+		$view->getFactory()->shouldReceive('flushSectionsIfDoneRendering')->once();
+
+		$view->renderable = m::mock('Illuminate\Contracts\Support\Renderable');
+		$view->renderable->shouldReceive('render')->once()->andReturn('text');
+		$this->assertEquals('contents', $view->render());
+	}
+
+
+	public function testViewRenderSections()
+	{
+		$view = $this->getView();
+		$view->getFactory()->shouldReceive('incrementRender')->once()->ordered();
+		$view->getFactory()->shouldReceive('callComposer')->once()->ordered()->with($view);
+		$view->getFactory()->shouldReceive('getShared')->once()->andReturn(array('shared' => 'foo'));
+		$view->getEngine()->shouldReceive('get')->once()->andReturn('contents');
+		$view->getFactory()->shouldReceive('decrementRender')->once()->ordered();
+		$view->getFactory()->shouldReceive('flushSectionsIfDoneRendering')->once();
+
+		$view->getFactory()->shouldReceive('getSections')->once()->andReturn(array('foo','bar'));
+		$sections = $view->renderSections();
+		$this->assertEquals($sections[0], 'foo');
+		$this->assertEquals($sections[1], 'bar');
+	}
+
+
+	public function testWithErrors()
+	{
+		$view = $this->getView();
+		$errors = array('foo' => 'bar', 'qu' => 'ux');
+		$this->assertSame($view, $view->withErrors($errors));
+		$this->assertInstanceOf('Illuminate\Support\MessageBag', $view->errors);
+		$foo = $view->errors->get('foo');
+		$this->assertEquals($foo[0], 'bar');
+		$qu = $view->errors->get('qu');
+		$this->assertEquals($qu[0], 'ux');
+		$data = array('foo' => 'baz');
+		$this->assertSame($view, $view->withErrors(new \Illuminate\Support\MessageBag($data)));
+		$foo = $view->errors->get('foo');
+		$this->assertEquals($foo[0], 'baz');
 	}
 
 

@@ -24,8 +24,8 @@ class ViewFactoryTest extends PHPUnit_Framework_TestCase {
 		$factory->addExtension('php', 'php');
 		$view = $factory->make('view', array('foo' => 'bar'), array('baz' => 'boom'));
 
-		$this->assertTrue($engine === $view->getEngine());
-		$this->assertTrue($_SERVER['__test.view'] === $view);
+		$this->assertSame($engine, $view->getEngine());
+		$this->assertSame($_SERVER['__test.view'], $view);
 
 		unset($_SERVER['__test.view']);
 	}
@@ -66,28 +66,28 @@ class ViewFactoryTest extends PHPUnit_Framework_TestCase {
 	}
 
 
-    public function testAddANamedViews()
-    {
-        $factory = $this->getFactory();
-        $factory->name('bar', 'foo');
+	public function testAddANamedViews()
+	{
+		$factory = $this->getFactory();
+		$factory->name('bar', 'foo');
 
-        $this->assertEquals(array('foo' => 'bar'), $factory->getNames());
-    }
+		$this->assertEquals(array('foo' => 'bar'), $factory->getNames());
+	}
 
 
-    public function testMakeAViewFromNamedView()
-    {
-        $factory = $this->getFactory();
-        $factory->getFinder()->shouldReceive('find')->once()->with('view')->andReturn('path.php');
-        $factory->getEngineResolver()->shouldReceive('resolve')->once()->with('php')->andReturn($engine = m::mock('Illuminate\View\Engines\EngineInterface'));
-        $factory->getFinder()->shouldReceive('addExtension')->once()->with('php');
+	public function testMakeAViewFromNamedView()
+	{
+		$factory = $this->getFactory();
+		$factory->getFinder()->shouldReceive('find')->once()->with('view')->andReturn('path.php');
+		$factory->getEngineResolver()->shouldReceive('resolve')->once()->with('php')->andReturn($engine = m::mock('Illuminate\View\Engines\EngineInterface'));
+		$factory->getFinder()->shouldReceive('addExtension')->once()->with('php');
 		$factory->getDispatcher()->shouldReceive('fire');
-        $factory->addExtension('php', 'php');
-        $factory->name('view', 'foo');
-        $view = $factory->of('foo', array('data'));
+		$factory->addExtension('php', 'php');
+		$factory->name('view', 'foo');
+		$view = $factory->of('foo', array('data'));
 
-        $this->assertTrue($engine === $view->getEngine());
-    }
+		$this->assertSame($engine, $view->getEngine());
+	}
 
 
 	public function testRawStringsMayBeReturnedFromRenderEach()
@@ -111,7 +111,7 @@ class ViewFactoryTest extends PHPUnit_Framework_TestCase {
 		$factory->addExtension('foo', 'bar', $resolver);
 
 		$view = $factory->make('view', array('data'));
-		$this->assertTrue($engine === $view->getEngine());
+		$this->assertSame($engine, $view->getEngine());
 	}
 
 
@@ -176,6 +176,7 @@ class ViewFactoryTest extends PHPUnit_Framework_TestCase {
 			'baz@baz' => array('qux', 'foo'),
 		));
 
+		$this->assertCount(3, $composers);
 		$reflections = array(
 			new ReflectionFunction($composers[0]),
 			new ReflectionFunction($composers[1]),
@@ -224,6 +225,15 @@ class ViewFactoryTest extends PHPUnit_Framework_TestCase {
 	}
 
 
+	public function testComposersAreRegisteredWithSlashAndDot()
+	{
+		$factory = $this->getFactory();
+		$factory->getDispatcher()->shouldReceive('listen')->with('composing: foo.bar', m::any())->twice();
+		$factory->composer('foo.bar', '');
+		$factory->composer('foo/bar', '');
+	}
+
+
 	public function testRenderCountHandling()
 	{
 		$factory = $this->getFactory();
@@ -254,6 +264,29 @@ class ViewFactoryTest extends PHPUnit_Framework_TestCase {
 		echo 'there';
 		$factory->stopSection();
 		$this->assertEquals('hi there', $factory->yieldContent('foo'));
+	}
+
+
+	public function testSingleStackPush()
+	{
+		$factory = $this->getFactory();
+		$factory->startSection('foo');
+		echo 'hi';
+		$factory->appendSection();
+		$this->assertEquals('hi', $factory->yieldContent('foo'));
+	}
+
+
+	public function testMultipleStackPush()
+	{
+		$factory = $this->getFactory();
+		$factory->startSection('foo');
+		echo 'hi';
+		$factory->appendSection();
+		$factory->startSection('foo');
+		echo ', Hello!';
+		$factory->appendSection();
+		$this->assertEquals('hi, Hello!', $factory->yieldContent('foo'));
 	}
 
 
@@ -309,12 +342,73 @@ class ViewFactoryTest extends PHPUnit_Framework_TestCase {
 	}
 
 
+	public function testMakeWithSlashAndDot()
+	{
+		$factory = $this->getFactory();
+		$factory->getFinder()->shouldReceive('find')->twice()->with('foo.bar')->andReturn('path.php');
+		$factory->getEngineResolver()->shouldReceive('resolve')->twice()->with('php')->andReturn(m::mock('Illuminate\View\Engines\EngineInterface'));
+		$factory->getDispatcher()->shouldReceive('fire');
+		$factory->make('foo/bar');
+		$factory->make('foo.bar');
+	}
+
+
+	public function testNamespacedViewNamesAreNormalizedProperly()
+	{
+		$factory = $this->getFactory();
+		$factory->getFinder()->shouldReceive('find')->twice()->with('vendor/package::foo.bar')->andReturn('path.php');
+		$factory->getEngineResolver()->shouldReceive('resolve')->twice()->with('php')->andReturn(m::mock('Illuminate\View\Engines\EngineInterface'));
+		$factory->getDispatcher()->shouldReceive('fire');
+		$factory->make('vendor/package::foo/bar');
+		$factory->make('vendor/package::foo.bar');
+	}
+
+
+	public function testMakeWithAlias()
+	{
+		$factory = $this->getFactory();
+		$factory->alias('real', 'alias');
+		$factory->getFinder()->shouldReceive('find')->once()->with('real')->andReturn('path.php');
+		$factory->getEngineResolver()->shouldReceive('resolve')->once()->with('php')->andReturn(m::mock('Illuminate\View\Engines\EngineInterface'));
+		$factory->getDispatcher()->shouldReceive('fire');
+
+		$view = $factory->make('alias');
+
+		$this->assertEquals('real', $view->getName());
+	}
+
+
+	public function testExceptionIsThrownForUnknownExtension()
+	{
+		$this->setExpectedException('InvalidArgumentException');
+		$factory = $this->getFactory();
+		$factory->getFinder()->shouldReceive('find')->once()->with('view')->andReturn('view.foo');
+		$factory->make('view');
+	}
+
+
+	public function testExceptionsInSectionsAreThrown()
+	{
+		$engine = new \Illuminate\View\Engines\CompilerEngine(m::mock('Illuminate\View\Compilers\CompilerInterface'));
+		$engine->getCompiler()->shouldReceive('getCompiledPath')->andReturnUsing(function($path) { return $path; });
+		$engine->getCompiler()->shouldReceive('isExpired')->twice()->andReturn(false);
+		$factory = $this->getFactory();
+		$factory->getEngineResolver()->shouldReceive('resolve')->twice()->andReturn($engine);
+		$factory->getFinder()->shouldReceive('find')->once()->with('layout')->andReturn(__DIR__.'/fixtures/section-exception-layout.php');
+		$factory->getFinder()->shouldReceive('find')->once()->with('view')->andReturn(__DIR__.'/fixtures/section-exception.php');
+		$factory->getDispatcher()->shouldReceive('fire')->times(4);
+
+		$this->setExpectedException('Exception', 'section exception message');
+		$factory->make('view')->render();
+	}
+
+
 	protected function getFactory()
 	{
 		return new Factory(
 			m::mock('Illuminate\View\Engines\EngineResolver'),
 			m::mock('Illuminate\View\ViewFinderInterface'),
-			m::mock('Illuminate\Events\Dispatcher')
+			m::mock('Illuminate\Contracts\Events\Dispatcher')
 		);
 	}
 
@@ -324,7 +418,7 @@ class ViewFactoryTest extends PHPUnit_Framework_TestCase {
 		return array(
 			m::mock('Illuminate\View\Engines\EngineResolver'),
 			m::mock('Illuminate\View\ViewFinderInterface'),
-			m::mock('Illuminate\Events\Dispatcher')
+			m::mock('Illuminate\Contracts\Events\Dispatcher')
 		);
 	}
 

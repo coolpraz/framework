@@ -4,11 +4,6 @@ use Illuminate\Support\Fluent;
 
 class SupportFluentTest extends PHPUnit_Framework_TestCase {
 
-	/**
-	 * Test the Fluent constructor.
-	 *
-	 * @test
-	 */
 	public function testAttributesAreSetByConstructor()
 	{
 		$array  = array('name' => 'Taylor', 'age' => 25);
@@ -22,11 +17,35 @@ class SupportFluentTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals($array, $fluent->getAttributes());
 	}
 
-	/**
-	 * Test the Fluent::get() method.
-	 *
-	 * @test
-	 */
+
+	public function testAttributesAreSetByConstructorGivenStdClass()
+	{
+		$array  = array('name' => 'Taylor', 'age' => 25);
+		$fluent = new Fluent((object) $array);
+
+		$refl = new \ReflectionObject($fluent);
+		$attributes = $refl->getProperty('attributes');
+		$attributes->setAccessible(true);
+
+		$this->assertEquals($array, $attributes->getValue($fluent));
+		$this->assertEquals($array, $fluent->getAttributes());
+	}
+
+
+	public function testAttributesAreSetByConstructorGivenArrayIterator()
+	{
+		$array  = array('name' => 'Taylor', 'age' => 25);
+		$fluent = new Fluent(new FluentArrayIteratorStub($array));
+
+		$refl = new \ReflectionObject($fluent);
+		$attributes = $refl->getProperty('attributes');
+		$attributes->setAccessible(true);
+
+		$this->assertEquals($array, $attributes->getValue($fluent));
+		$this->assertEquals($array, $fluent->getAttributes());
+	}
+
+
 	public function testGetMethodReturnsAttribute()
 	{
 		$fluent = new Fluent(array('name' => 'Taylor'));
@@ -37,11 +56,7 @@ class SupportFluentTest extends PHPUnit_Framework_TestCase {
 		$this->assertNull($fluent->foo);
 	}
 
-	/**
-	 * Test the Fluent magic methods can be used to set attributes.
-	 *
-	 * @test
-	 */
+
 	public function testMagicMethodsCanBeUsedToSetAttributes()
 	{
 		$fluent = new Fluent;
@@ -56,11 +71,7 @@ class SupportFluentTest extends PHPUnit_Framework_TestCase {
 		$this->assertInstanceOf('Illuminate\Support\Fluent', $fluent->programmer());
 	}
 
-	/**
-	 * Test the Fluent::__isset() method.
-	 *
-	 * @test
-	 */
+
 	public function testIssetMagicMethod()
 	{
 		$array  = array('name' => 'Taylor', 'age' => 25);
@@ -90,5 +101,21 @@ class SupportFluentTest extends PHPUnit_Framework_TestCase {
 		$results = $fluent->toJson();
 
 		$this->assertEquals(json_encode('foo'), $results);
+	}
+
+}
+
+
+class FluentArrayIteratorStub implements \IteratorAggregate {
+	protected $items = array();
+
+	public function __construct(array $items = array())
+	{
+		$this->items = (array) $items;
+	}
+
+	public function getIterator()
+	{
+		return new \ArrayIterator($this->items);
 	}
 }

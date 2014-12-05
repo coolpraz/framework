@@ -2,31 +2,33 @@
 
 use PDO;
 use Illuminate\Support\Fluent;
-use Illuminate\Events\Dispatcher;
-use Illuminate\Cache\CacheManager;
 use Illuminate\Container\Container;
 use Illuminate\Database\DatabaseManager;
+use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Database\Eloquent\Model as Eloquent;
 use Illuminate\Database\Connectors\ConnectionFactory;
+use Illuminate\Support\Traits\CapsuleManagerTrait;
 
 class Manager {
 
+	use CapsuleManagerTrait;
+
 	/**
-	 * The current globally used instance.
+	 * The database manager instance.
 	 *
-	 * @var \Illuminate\Database\Capsule\Manager
+	 * @var \Illuminate\Database\DatabaseManager
 	 */
-	protected static $instance;
+	protected $manager;
 
 	/**
 	 * Create a new database capsule manager.
 	 *
-	 * @param  \Illuminate\Container\Container  $container
+	 * @param  \Illuminate\Container\Container|null  $container
 	 * @return void
 	 */
 	public function __construct(Container $container = null)
 	{
-		$this->setupContainer($container);
+		$this->setupContainer($container ?: new Container);
 
 		// Once we have the container setup, we will setup the default configuration
 		// options in the container "config" binding. This will make the database
@@ -34,19 +36,6 @@ class Manager {
 		$this->setupDefaultConfiguration();
 
 		$this->setupManager();
-	}
-
-	/**
-	 * Setup the IoC container instance.
-	 *
-	 * @param  \Illuminate\Container\Container  $container
-	 * @return void
-	 */
-	protected function setupContainer($container)
-	{
-		$this->container = $container ?: new Container;
-
-		$this->container->instance('config', new Fluent);
 	}
 
 	/**
@@ -156,7 +145,7 @@ class Manager {
 	 * Set the fetch mode for the database connections.
 	 *
 	 * @param  int  $fetchMode
-	 * @return \Illuminate\Database\Capsule\Manager
+	 * @return $this
 	 */
 	public function setFetchMode($fetchMode)
 	{
@@ -166,19 +155,19 @@ class Manager {
 	}
 
 	/**
-	 * Make this capsule instance available globally.
+	 * Get the database manager instance.
 	 *
-	 * @return void
+	 * @return \Illuminate\Database\DatabaseManager
 	 */
-	public function setAsGlobal()
+	public function getDatabaseManager()
 	{
-		static::$instance = $this;
+		return $this->manager;
 	}
 
 	/**
 	 * Get the current event dispatcher instance.
 	 *
-	 * @return \Illuminate\Events\Dispatcher
+	 * @return \Illuminate\Contracts\Events\Dispatcher
 	 */
 	public function getEventDispatcher()
 	{
@@ -191,57 +180,12 @@ class Manager {
 	/**
 	 * Set the event dispatcher instance to be used by connections.
 	 *
-	 * @param  \Illuminate\Events\Dispatcher  $dispatcher
+	 * @param  \Illuminate\Contracts\Events\Dispatcher  $dispatcher
 	 * @return void
 	 */
 	public function setEventDispatcher(Dispatcher $dispatcher)
 	{
 		$this->container->instance('events', $dispatcher);
-	}
-
-	/**
-	 * Get the current cache manager instance.
-	 *
-	 * @return \Illuminate\Cache\Manager
-	 */
-	public function getCacheManager()
-	{
-		if ($this->container->bound('cache'))
-		{
-			return $this->container['cache'];
-		}
-	}
-
-	/**
-	 * Set the cache manager to be used by connections.
-	 *
-	 * @param  \Illuminate\Cache\CacheManager  $cache
-	 * @return void
-	 */
-	public function setCacheManager(CacheManager $cache)
-	{
-		$this->container->instance('cache', $cache);
-	}
-
-	/**
-	 * Get the IoC container instance.
-	 *
-	 * @return \Illuminate\Container\Container
-	 */
-	public function getContainer()
-	{
-		return $this->container;
-	}
-
-	/**
-	 * Set the IoC container instance.
-	 *
-	 * @param  \Illuminate\Container\Container  $container
-	 * @return void
-	 */
-	public function setContainer(Container $container)
-	{
-		$this->container = $container;
 	}
 
 	/**

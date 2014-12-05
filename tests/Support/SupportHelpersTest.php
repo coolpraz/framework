@@ -41,6 +41,17 @@ class SupportHelpersTest extends PHPUnit_Framework_TestCase {
 		array_forget($array, 'names.developer');
 		$this->assertFalse(isset($array['names']['developer']));
 		$this->assertTrue(isset($array['names']['otherDeveloper']));
+
+		$array = ['names' => ['developer' => 'taylor', 'otherDeveloper' => 'dayle', 'thirdDeveloper' => 'Lucas']];
+		array_forget($array, ['names.developer', 'names.otherDeveloper']);
+		$this->assertFalse(isset($array['names']['developer']));
+		$this->assertFalse(isset($array['names']['otherDeveloper']));
+		$this->assertTrue(isset($array['names']['thirdDeveloper']));
+
+		$array = ['names' => ['developer' => 'taylor', 'otherDeveloper' => 'dayle'], 'otherNames' => ['developer' => 'Lucas', 'otherDeveloper' => 'Graham']];
+		array_forget($array, ['names.developer', 'otherNames.otherDeveloper']);
+		$expected = ['names' => ['otherDeveloper' => 'dayle'], 'otherNames' => ['developer' => 'Lucas']];
+		$this->assertEquals($expected, $array);
 	}
 
 
@@ -63,6 +74,7 @@ class SupportHelpersTest extends PHPUnit_Framework_TestCase {
 	{
 		$array = array('name' => 'taylor', 'age' => 26);
 		$this->assertEquals(array('name' => 'taylor'), array_only($array, array('name')));
+		$this->assertSame(array(), array_only($array, array('nonExistingKey')));
 	}
 
 
@@ -79,6 +91,12 @@ class SupportHelpersTest extends PHPUnit_Framework_TestCase {
 	{
 		$array = array('name' => 'taylor', 'otherDeveloper' => 'dayle');
 		$this->assertEquals('dayle', array_first($array, function($key, $value) { return $value == 'dayle'; }));
+	}
+
+	public function testArrayLast()
+	{
+		$array = array(100, 250, 290, 320, 500, 560, 670);
+		$this->assertEquals(670, array_last($array, function($key, $value) { return $value > 320; }));
 	}
 
 
@@ -208,6 +226,19 @@ class SupportHelpersTest extends PHPUnit_Framework_TestCase {
 	}
 
 
+	public function testDataGet()
+	{
+		$object = (object) array('users' => array('name' => array('Taylor', 'Otwell')));
+		$array = array((object) array('users' => array((object) array('name' => 'Taylor'))));
+
+		$this->assertEquals('Taylor', data_get($object, 'users.name.0'));
+		$this->assertEquals('Taylor', data_get($array, '0.users.0.name'));
+		$this->assertNull(data_get($array, '0.users.3'));
+		$this->assertEquals('Not found', data_get($array, '0.users.3', 'Not found'));
+		$this->assertEquals('Not found', data_get($array, '0.users.3', function (){ return 'Not found'; }));
+	}
+
+
 	public function testArraySort()
 	{
 		$array = array(
@@ -223,4 +254,41 @@ class SupportHelpersTest extends PHPUnit_Framework_TestCase {
 		array_values(array_sort($array, function($v) { return $v['name']; })));
 	}
 
+
+	public function testClassUsesRecursiveShouldReturnTraitsOnParentClasses()
+	{
+		$this->assertEquals([
+			'SupportTestTraitOne' => 'SupportTestTraitOne',
+			'SupportTestTraitTwo' => 'SupportTestTraitTwo',
+		],
+		class_uses_recursive('SupportTestClassTwo'));
+	}
+
+
+	public function testArrayAdd()
+	{
+		$this->assertEquals(array('surname' => 'Mövsümov'), array_add(array(), 'surname', 'Mövsümov'));
+		$this->assertEquals(array('developer' => array('name' => 'Ferid')), array_add(array(), 'developer.name', 'Ferid'));
+	}
+
+
+	public function testArrayPull()
+	{
+		$developer = array('firstname' => 'Ferid', 'surname' => 'Mövsümov');
+		$this->assertEquals('Mövsümov', array_pull($developer, 'surname'));
+		$this->assertEquals(array('firstname' => 'Ferid'), $developer);
+	}
+
 }
+
+trait SupportTestTraitOne {}
+
+trait SupportTestTraitTwo {
+	use SupportTestTraitOne;
+}
+
+class SupportTestClassOne {
+	use SupportTestTraitTwo;
+}
+
+class SupportTestClassTwo extends SupportTestClassOne {}

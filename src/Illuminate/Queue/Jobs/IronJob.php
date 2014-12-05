@@ -2,8 +2,9 @@
 
 use Illuminate\Queue\IronQueue;
 use Illuminate\Container\Container;
+use Illuminate\Contracts\Queue\Job as JobContract;
 
-class IronJob extends Job {
+class IronJob extends Job implements JobContract {
 
 	/**
 	 * The Iron queue instance.
@@ -15,7 +16,7 @@ class IronJob extends Job {
 	/**
 	 * The IronMQ message instance.
 	 *
-	 * @var array
+	 * @var object
 	 */
 	protected $job;
 
@@ -32,7 +33,6 @@ class IronJob extends Job {
 	 * @param  \Illuminate\Container\Container  $container
 	 * @param  \Illuminate\Queue\IronQueue  $iron
 	 * @param  object  $job
-	 * @param  string  $queue
 	 * @param  bool    $pushed
 	 * @return void
 	 */

@@ -23,24 +23,19 @@ class SupportStrTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals(' Taylor...', Str::words(' Taylor Otwell ', 1));
 	}
 
+
 	public function testStringTitle()
 	{
 		$this->assertEquals('Jefferson Costella', Str::title('jefferson costella'));
 		$this->assertEquals('Jefferson Costella', Str::title('jefFErson coSTella'));
 	}
 
+
 	public function testStringWithoutWordsDoesntProduceError()
 	{
 		$nbsp = chr(0xC2).chr(0xA0);
 		$this->assertEquals(' ', Str::words(' '));
 		$this->assertEquals($nbsp, Str::words($nbsp));
-	}
-
-
-	public function testStringMacros()
-	{
-		Illuminate\Support\Str::macro(__CLASS__, function() { return 'foo'; });
-		$this->assertEquals('foo', Str::SupportStrTest());
 	}
 
 
@@ -63,6 +58,7 @@ class SupportStrTest extends PHPUnit_Framework_TestCase {
 		$this->assertFalse(Str::endsWith('jason', 'no'));
 		$this->assertFalse(Str::endsWith('jason', array('no')));
 		$this->assertFalse(Str::endsWith('jason', ''));
+		$this->assertFalse(Str::endsWith('7', ' 7'));
 	}
 
 
@@ -107,6 +103,50 @@ class SupportStrTest extends PHPUnit_Framework_TestCase {
 		$this->assertFalse(Str::is('/', '/a'));
 		$this->assertTrue(Str::is('foo/*', 'foo/bar/baz'));
 		$this->assertTrue(Str::is('*/foo', 'blah/baz/foo'));
+	}
+
+
+	public function testLower()
+	{
+		$this->assertEquals('foo bar baz', Str::lower('FOO BAR BAZ'));
+		$this->assertEquals('foo bar baz', Str::lower('fOo Bar bAz'));
+	}
+
+
+	public function testUpper()
+	{
+		$this->assertEquals('FOO BAR BAZ', Str::upper('foo bar baz'));
+		$this->assertEquals('FOO BAR BAZ', Str::upper('foO bAr BaZ'));
+	}
+
+
+	public function testLimit()
+	{
+		$this->assertEquals('Laravel is...', Str::limit('Laravel is a free, open source PHP web application framework.', 10));
+	}
+
+
+	public function testLength()
+	{
+		$this->assertEquals(11, Str::length('foo bar baz'));
+	}
+
+
+	public function testQuickRandom()
+	{
+		$randomInteger = mt_rand(1, 100);
+		$this->assertEquals($randomInteger, strlen(Str::quickRandom($randomInteger)));
+		$this->assertInternalType('string', Str::quickRandom());
+		$this->assertEquals(16, strlen(Str::quickRandom()));
+	}
+
+
+	public function testRandom()
+	{
+		$this->assertEquals(16, strlen(Str::random()));
+		$randomInteger = mt_rand(1, 100);
+		$this->assertEquals($randomInteger, strlen(Str::random($randomInteger)));
+		$this->assertInternalType('string', Str::random());
 	}
 
 }

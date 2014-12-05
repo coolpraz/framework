@@ -1,9 +1,12 @@
 <?php namespace Illuminate\Database\Console\Migrations;
 
+use Illuminate\Console\ConfirmableTrait;
 use Illuminate\Database\Migrations\Migrator;
 use Symfony\Component\Console\Input\InputOption;
 
 class MigrateCommand extends BaseCommand {
+
+	use ConfirmableTrait;
 
 	/**
 	 * The console command name.
@@ -53,6 +56,8 @@ class MigrateCommand extends BaseCommand {
 	 */
 	public function fire()
 	{
+		if ( ! $this->confirmToProceed()) return;
+
 		$this->prepareDatabase();
 
 		// The pretend option can be used for "simulating" the migration and grabbing
@@ -77,7 +82,7 @@ class MigrateCommand extends BaseCommand {
 		// a migration and a seed at the same time, as it is only this command.
 		if ($this->input->getOption('seed'))
 		{
-			$this->call('db:seed');
+			$this->call('db:seed', ['--force' => true]);
 		}
 	}
 
@@ -106,13 +111,11 @@ class MigrateCommand extends BaseCommand {
 	protected function getOptions()
 	{
 		return array(
-			array('bench', null, InputOption::VALUE_OPTIONAL, 'The name of the workbench to migrate.', null),
-
 			array('database', null, InputOption::VALUE_OPTIONAL, 'The database connection to use.'),
 
-			array('path', null, InputOption::VALUE_OPTIONAL, 'The path to migration files.', null),
+			array('force', null, InputOption::VALUE_NONE, 'Force the operation to run when in production.'),
 
-			array('package', null, InputOption::VALUE_OPTIONAL, 'The package to migrate.', null),
+			array('path', null, InputOption::VALUE_OPTIONAL, 'The path to migration files.', null),
 
 			array('pretend', null, InputOption::VALUE_NONE, 'Dump the SQL queries that would be run.'),
 

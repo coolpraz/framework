@@ -1,5 +1,7 @@
 <?php namespace Illuminate\Http;
 
+use Symfony\Component\HttpFoundation\Cookie;
+
 trait ResponseTrait {
 
 	/**
@@ -8,7 +10,7 @@ trait ResponseTrait {
 	 * @param  string  $key
 	 * @param  string  $value
 	 * @param  bool    $replace
-	 * @return \Illuminate\Http\Response
+	 * @return $this
 	 */
 	public function header($key, $value, $replace = true)
 	{
@@ -21,7 +23,7 @@ trait ResponseTrait {
 	 * Add a cookie to the response.
 	 *
 	 * @param  \Symfony\Component\HttpFoundation\Cookie  $cookie
-	 * @return \Illuminate\Http\Response
+	 * @return $this
 	 */
 	public function withCookie(Cookie $cookie)
 	{

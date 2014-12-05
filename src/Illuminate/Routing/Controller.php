@@ -1,9 +1,15 @@
 <?php namespace Illuminate\Routing;
 
 use Closure;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 abstract class Controller {
+
+	/**
+	 * The middleware registered on the controller.
+	 *
+	 * @var array
+	 */
+	protected $middleware = [];
 
 	/**
 	 * The "before" filters registered on the controller.
@@ -20,23 +26,28 @@ abstract class Controller {
 	protected $afterFilters = array();
 
 	/**
-	 * The route filterer implementation.
+	 * The router instance.
 	 *
-	 * @var \Illuminate\Routing\RouteFiltererInterface
+	 * @var \Illuminate\Routing\Router
 	 */
-	protected static $filterer;
+	protected static $router;
 
 	/**
-	 * The layout used by the controller.
+	 * Register middleware on the controller.
 	 *
-	 * @var \Illuminate\View\View
+	 * @param  string  $middleware
+	 * @param  array   $options
+	 * @return void
 	 */
-	protected $layout;
+	public function middleware($middleware, array $options = array())
+	{
+		$this->middleware[$middleware] = $options;
+	}
 
 	/**
-	 * Register a "before" filter on the controler.
+	 * Register a "before" filter on the controller.
 	 *
-	 * @param  \Closure|string  $name
+	 * @param  \Closure|string  $filter
 	 * @param  array  $options
 	 * @return void
 	 */
@@ -46,9 +57,9 @@ abstract class Controller {
 	}
 
 	/**
-	 * Register an "after" filter on the controler.
+	 * Register an "after" filter on the controller.
 	 *
-	 * @param  \Closure|string  $name
+	 * @param  \Closure|string  $filter
 	 * @param  array  $options
 	 * @return void
 	 */
@@ -60,7 +71,7 @@ abstract class Controller {
 	/**
 	 * Parse the given filter and options.
 	 *
-	 * @param  \Closure|string  $name
+	 * @param  \Closure|string  $filter
 	 * @param  array  $options
 	 * @return array
 	 */
@@ -94,7 +105,7 @@ abstract class Controller {
 	 */
 	protected function registerClosureFilter(Closure $filter)
 	{
-		$this->getFilterer()->filter($name = spl_object_hash($filter), $filter);
+		$this->getRouter()->filter($name = spl_object_hash($filter), $filter);
 
 		return $name;
 	}
@@ -107,7 +118,7 @@ abstract class Controller {
 	 */
 	protected function registerInstanceFilter($filter)
 	{
-		$this->getFilterer()->filter($filter, array($this, substr($filter, 1)));
+		$this->getRouter()->filter($filter, array($this, substr($filter, 1)));
 
 		return $filter;
 	}
@@ -116,7 +127,7 @@ abstract class Controller {
 	 * Determine if a filter is a local method on the controller.
 	 *
 	 * @param  mixed  $filter
-	 * @return boolean
+	 * @return bool
 	 *
 	 * @throws \InvalidArgumentException
 	 */
@@ -130,6 +141,53 @@ abstract class Controller {
 		}
 
 		return false;
+	}
+
+	/**
+	 * Remove the given before filter.
+	 *
+	 * @param  string  $filter
+	 * @return void
+	 */
+	public function forgetBeforeFilter($filter)
+	{
+		$this->beforeFilters = $this->removeFilter($filter, $this->getBeforeFilters());
+	}
+
+	/**
+	 * Remove the given after filter.
+	 *
+	 * @param  string  $filter
+	 * @return void
+	 */
+	public function forgetAfterFilter($filter)
+	{
+		$this->afterFilters = $this->removeFilter($filter, $this->getAfterFilters());
+	}
+
+	/**
+	 * Remove the given controller filter from the provided filter array.
+	 *
+	 * @param  string  $removing
+	 * @param  array   $current
+	 * @return array
+	 */
+	protected function removeFilter($removing, $current)
+	{
+		return array_filter($current, function($filter) use ($removing)
+		{
+			return $filter['original'] != $removing;
+		});
+	}
+
+	/**
+	 * Get the middleware assigned to the controller.
+	 *
+	 * @return array
+	 */
+	public function getMiddleware()
+	{
+		return $this->middleware;
 	}
 
 	/**
@@ -153,68 +211,36 @@ abstract class Controller {
 	}
 
 	/**
-	 * Get the route filterer implementation.
+	 * Get the router instance.
 	 *
-	 * @return \Illuminate\Routing\RouteFiltererInterface
+	 * @return \Illuminate\Routing\Router
 	 */
-	public static function getFilterer()
+	public static function getRouter()
 	{
-		return static::$filterer;
+		return static::$router;
 	}
 
 	/**
-	 * Set the route filterer implementation.
+	 * Set the router instance.
 	 *
-	 * @param  \Illuminate\Routing\RouteFiltererInterface  $filterer
+	 * @param  \Illuminate\Routing\Router  $router
 	 * @return void
 	 */
-	public static function setFilterer(RouteFiltererInterface $filterer)
+	public static function setRouter(Router $router)
 	{
-		static::$filterer = $filterer;
+		static::$router = $router;
 	}
-
-	/**
-	 * Create the layout used by the controller.
-	 *
-	 * @return void
-	 */
-	protected function setupLayout() {}
 
 	/**
 	 * Execute an action on the controller.
 	 *
-	 * @param string  $method
-	 * @param array   $parameters
+	 * @param  string  $method
+	 * @param  array   $parameters
 	 * @return \Symfony\Component\HttpFoundation\Response
 	 */
 	public function callAction($method, $parameters)
 	{
-		$this->setupLayout();
-
-		$response = call_user_func_array(array($this, $method), $parameters);
-
-		// If no response is returned from the controller action and a layout is being
-		// used we will assume we want to just return the layout view as any nested
-		// views were probably bound on this view during this controller actions.
-		if (is_null($response) and ! is_null($this->layout))
-		{
-			$response = $this->layout;
-		}
-
-		return $response;
-	}
-
-	/**
-	 * Handle calls to missing methods on the controller.
-	 *
-	 * @param  array   $parameters
-	 * @return mixed
-	 *
-	 * @throws \Symfony\Component\HttpKernel\Exception\NotFoundHttpException
-	 */
-	public function missingMethod($parameters = array())
-	{
-		throw new NotFoundHttpException("Controller method not found.");
+		return call_user_func_array(array($this, $method), $parameters);
 	}
 
 	/**
@@ -223,6 +249,8 @@ abstract class Controller {
 	 * @param  string  $method
 	 * @param  array   $parameters
 	 * @return mixed
+	 *
+	 * @throws \BadMethodCallException
 	 */
 	public function __call($method, $parameters)
 	{

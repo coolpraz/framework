@@ -6,13 +6,6 @@ use Illuminate\Database\Schema\Blueprint;
 class PostgresGrammar extends Grammar {
 
 	/**
-	 * The keyword identifier wrapper format.
-	 *
-	 * @var string
-	 */
-	protected $wrapper = '"%s"';
-
-	/**
 	 * The possible column modifiers.
 	 *
 	 * @var array
@@ -230,6 +223,17 @@ class PostgresGrammar extends Grammar {
 	}
 
 	/**
+	 * Create the column definition for a char type.
+	 *
+	 * @param  \Illuminate\Support\Fluent  $column
+	 * @return string
+	 */
+	protected function typeChar(Fluent $column)
+	{
+		return "char({$column->length})";
+	}
+
+	/**
 	 * Create the column definition for a string type.
 	 *
 	 * @param  \Illuminate\Support\Fluent  $column
@@ -336,7 +340,7 @@ class PostgresGrammar extends Grammar {
 	 */
 	protected function typeFloat(Fluent $column)
 	{
-		return 'real';
+		return $this->typeDouble($column);
 	}
 
 	/**
@@ -382,7 +386,7 @@ class PostgresGrammar extends Grammar {
 	{
 		$allowed = array_map(function($a) { return "'".$a."'"; }, $column->allowed);
 
-		return "varchar(255) check ({$column->name} in (".implode(', ', $allowed)."))";
+		return "varchar(255) check (\"{$column->name}\" in (".implode(', ', $allowed)."))";
 	}
 
 	/**
@@ -404,7 +408,7 @@ class PostgresGrammar extends Grammar {
 	 */
 	protected function typeDateTime(Fluent $column)
 	{
-		return 'timestamp';
+		return 'timestamp(0) without time zone';
 	}
 
 	/**
@@ -415,7 +419,7 @@ class PostgresGrammar extends Grammar {
 	 */
 	protected function typeTime(Fluent $column)
 	{
-		return 'time';
+		return 'time(0) without time zone';
 	}
 
 	/**
@@ -426,7 +430,7 @@ class PostgresGrammar extends Grammar {
 	 */
 	protected function typeTimestamp(Fluent $column)
 	{
-		return 'timestamp';
+		return 'timestamp(0) without time zone';
 	}
 
 	/**
@@ -476,7 +480,7 @@ class PostgresGrammar extends Grammar {
 	 */
 	protected function modifyIncrement(Blueprint $blueprint, Fluent $column)
 	{
-		if (in_array($column->type, $this->serials) and $column->autoIncrement)
+		if (in_array($column->type, $this->serials) && $column->autoIncrement)
 		{
 			return ' primary key';
 		}

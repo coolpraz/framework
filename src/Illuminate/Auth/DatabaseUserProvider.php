@@ -1,21 +1,22 @@
 <?php namespace Illuminate\Auth;
 
 use Illuminate\Database\Connection;
-use Illuminate\Hashing\HasherInterface;
+use Illuminate\Contracts\Hashing\Hasher as HasherContract;
+use Illuminate\Contracts\Auth\Authenticatable as UserContract;
 
 class DatabaseUserProvider implements UserProviderInterface {
 
 	/**
 	 * The active database connection.
 	 *
-	 * @param  \Illuminate\Database\Connection
+	 * @var \Illuminate\Database\Connection
 	 */
 	protected $conn;
 
 	/**
 	 * The hasher implementation.
 	 *
-	 * @var \Illuminate\Hashing\HasherInterface
+	 * @var \Illuminate\Contracts\Hashing\Hasher
 	 */
 	protected $hasher;
 
@@ -30,11 +31,11 @@ class DatabaseUserProvider implements UserProviderInterface {
 	 * Create a new database user provider.
 	 *
 	 * @param  \Illuminate\Database\Connection  $conn
-	 * @param  \Illuminate\Hashing\HasherInterface  $hasher
+	 * @param  \Illuminate\Contracts\Hashing\Hasher  $hasher
 	 * @param  string  $table
 	 * @return void
 	 */
-	public function __construct(Connection $conn, HasherInterface $hasher, $table)
+	public function __construct(Connection $conn, HasherContract $hasher, $table)
 	{
 		$this->conn = $conn;
 		$this->table = $table;
@@ -45,7 +46,7 @@ class DatabaseUserProvider implements UserProviderInterface {
 	 * Retrieve a user by their unique identifier.
 	 *
 	 * @param  mixed  $identifier
-	 * @return \Illuminate\Auth\UserInterface|null
+	 * @return \Illuminate\Contracts\Auth\Authenticatable|null
 	 */
 	public function retrieveById($identifier)
 	{
@@ -58,10 +59,44 @@ class DatabaseUserProvider implements UserProviderInterface {
 	}
 
 	/**
+	 * Retrieve a user by by their unique identifier and "remember me" token.
+	 *
+	 * @param  mixed   $identifier
+	 * @param  string  $token
+	 * @return \Illuminate\Contracts\Auth\Authenticatable|null
+	 */
+	public function retrieveByToken($identifier, $token)
+	{
+		$user = $this->conn->table($this->table)
+                                ->where('id', $identifier)
+                                ->where('remember_token', $token)
+                                ->first();
+
+		if ( ! is_null($user))
+		{
+			return new GenericUser((array) $user);
+		}
+	}
+
+	/**
+	 * Update the "remember me" token for the given user in storage.
+	 *
+	 * @param  \Illuminate\Contracts\Auth\Authenticatable  $user
+	 * @param  string  $token
+	 * @return void
+	 */
+	public function updateRememberToken(UserContract $user, $token)
+	{
+		$this->conn->table($this->table)
+                            ->where('id', $user->getAuthIdentifier())
+                            ->update(['remember_token' => $token]);
+	}
+
+	/**
 	 * Retrieve a user by the given credentials.
 	 *
 	 * @param  array  $credentials
-	 * @return \Illuminate\Auth\UserInterface|null
+	 * @return \Illuminate\Contracts\Auth\User|null
 	 */
 	public function retrieveByCredentials(array $credentials)
 	{
@@ -92,11 +127,11 @@ class DatabaseUserProvider implements UserProviderInterface {
 	/**
 	 * Validate a user against the given credentials.
 	 *
-	 * @param  \Illuminate\Auth\UserInterface  $user
+	 * @param  \Illuminate\Contracts\Auth\Authenticatable  $user
 	 * @param  array  $credentials
 	 * @return bool
 	 */
-	public function validateCredentials(UserInterface $user, array $credentials)
+	public function validateCredentials(UserContract $user, array $credentials)
 	{
 		$plain = $credentials['password'];
 

@@ -1,7 +1,6 @@
 <?php
 
 use Mockery as m;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 
 class DatabaseEloquentMorphToManyTest extends PHPUnit_Framework_TestCase {
@@ -34,7 +33,7 @@ class DatabaseEloquentMorphToManyTest extends PHPUnit_Framework_TestCase {
 		$relation->getQuery()->shouldReceive('getQuery')->andReturn($mockQueryBuilder = m::mock('StdClass'));
 		$mockQueryBuilder->shouldReceive('newQuery')->once()->andReturn($query);
 		$relation->expects($this->once())->method('touchIfTouching');
-		
+
 		$relation->attach(2, array('foo' => 'bar'));
 	}
 

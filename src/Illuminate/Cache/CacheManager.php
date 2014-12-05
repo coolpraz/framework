@@ -1,8 +1,9 @@
 <?php namespace Illuminate\Cache;
 
 use Illuminate\Support\Manager;
+use Illuminate\Contracts\Cache\Factory as FactoryContract;
 
-class CacheManager extends Manager {
+class CacheManager extends Manager implements FactoryContract {
 
 	/**
 	 * Create an instance of the APC cache driver.
@@ -48,6 +49,16 @@ class CacheManager extends Manager {
 		$memcached = $this->app['memcached.connector']->connect($servers);
 
 		return $this->repository(new MemcachedStore($memcached, $this->getPrefix()));
+	}
+
+	/**
+	 * Create an instance of the Null cache driver.
+	 *
+	 * @return \Illuminate\Cache\NullStore
+	 */
+	protected function createNullDriver()
+	{
+		return $this->repository(new NullStore);
 	}
 
 	/**

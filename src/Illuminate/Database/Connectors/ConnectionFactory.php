@@ -1,25 +1,25 @@
 <?php namespace Illuminate\Database\Connectors;
 
 use PDO;
-use Illuminate\Container\Container;
 use Illuminate\Database\MySqlConnection;
 use Illuminate\Database\SQLiteConnection;
 use Illuminate\Database\PostgresConnection;
 use Illuminate\Database\SqlServerConnection;
+use Illuminate\Contracts\Container\Container;
 
 class ConnectionFactory {
 
 	/**
 	 * The IoC container instance.
 	 *
-	 * @var \Illuminate\Container\Container
+	 * @var \Illuminate\Contracts\Container\Container
 	 */
 	protected $container;
 
 	/**
 	 * Create a new connection factory instance.
 	 *
-	 * @param  \Illuminate\Container\Container  $container
+	 * @param  \Illuminate\Contracts\Container\Container  $container
 	 * @return void
 	 */
 	public function __construct(Container $container)
@@ -42,10 +42,8 @@ class ConnectionFactory {
 		{
 			return $this->createReadWriteConnection($config);
 		}
-		else
-		{
-			return $this->createSingleConnection($config);
-		}
+
+		return $this->createSingleConnection($config);
 	}
 
 	/**
@@ -116,7 +114,7 @@ class ConnectionFactory {
 	/**
 	 * Get a read / write level configuration.
 	 *
-	 * @param  array  $config
+	 * @param  array   $config
 	 * @param  string  $type
 	 * @return array
 	 */
@@ -126,10 +124,8 @@ class ConnectionFactory {
 		{
 			return $config[$type][array_rand($config[$type])];
 		}
-		else
-		{
-			return $config[$type];
-		}
+
+		return $config[$type];
 	}
 
 	/**
@@ -197,16 +193,16 @@ class ConnectionFactory {
 	/**
 	 * Create a new connection instance.
 	 *
-	 * @param  string  $driver
-	 * @param  PDO     $connection
-	 * @param  string  $database
-	 * @param  string  $prefix
-	 * @param  array   $config
+	 * @param  string   $driver
+	 * @param  \PDO     $connection
+	 * @param  string   $database
+	 * @param  string   $prefix
+	 * @param  array    $config
 	 * @return \Illuminate\Database\Connection
 	 *
 	 * @throws \InvalidArgumentException
 	 */
-	protected function createConnection($driver, PDO $connection, $database, $prefix = '', $config = null)
+	protected function createConnection($driver, PDO $connection, $database, $prefix = '', array $config = array())
 	{
 		if ($this->container->bound($key = "db.connection.{$driver}"))
 		{

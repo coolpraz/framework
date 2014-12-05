@@ -295,7 +295,7 @@ class DatabaseSQLiteSchemaGrammarTest extends PHPUnit_Framework_TestCase {
 		$statements = $blueprint->toSql($this->getConnection(), $this->getGrammar());
 
 		$this->assertEquals(1, count($statements));
-		$this->assertEquals('alter table "users" add column "foo" float not null', $statements[0]);
+		$this->assertEquals('alter table "users" add column "foo" numeric not null', $statements[0]);
 	}
 
 
@@ -374,9 +374,20 @@ class DatabaseSQLiteSchemaGrammarTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals(2, count($statements));
 		$expected = array(
 			'alter table "users" add column "created_at" datetime not null',
-			'alter table "users" add column "updated_at" datetime not null'
+			'alter table "users" add column "updated_at" datetime not null',
 		);
 		$this->assertEquals($expected, $statements);
+	}
+
+
+	public function testAddingRememberToken()
+	{
+		$blueprint = new Blueprint('users');
+		$blueprint->rememberToken();
+		$statements = $blueprint->toSql($this->getConnection(), $this->getGrammar());
+
+		$this->assertEquals(1, count($statements));
+		$this->assertEquals('alter table "users" add column "remember_token" varchar null', $statements[0]);
 	}
 
 
